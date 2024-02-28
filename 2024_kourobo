@@ -1,1 +1,150 @@
-a
+#include "mbed.h"
+#include <cmath>
+
+#define SPEED 0.8
+
+class Motor{
+    PwmOut a, b;
+public:
+    Motor(PinName A_term, PinName B_term) : a(A_term), b(B_term) {
+        a.period(0.0002);
+        b.period(0.0002);
+    }
+    
+    Motor& operator=(double duty) {
+        if(duty > 0){
+            a = duty < 1 ? duty : 1;        //duty < 1naraduty,duty > 1nara1
+            b = 0;
+        }else {
+            a = 0;
+            b = duty > -1 ? -duty : 1;
+        }
+        return *this;
+    }
+    operator double() {
+        if(a > 0)
+            return (double)a;
+        else
+            return -(double)b;
+    }
+};
+
+//DigitalOut Led[] = {PB_14, PB_0, };
+
+DigitalIn lim[2] = {PD_3, PD_4};
+//DigitalOut wire[2] = {PF_5, PC_0}, trport3[2] = {PC_3, PF_3};
+Motor wmotor[4] = {Motor(PE_9, PE_11), Motor(PE_13, PE_14), Motor(PB_10,PB_11), Motor(PD_12,PD_13)};            //fr, fl, rr, rl
+Motor m1(PC_8, PC_9), m2(PE_5, PE_6), m3(PF_7,PF_8);
+DigitalIn Limit[2] = {PD_3, PD_4};
+//PwmOut PWM1(PD_12), PWM2(PD_13), PWM3(PD_14), trport1(PC_6), trport2(PC_7), shot1(PC_8), shot2(PC_9), shot3(PD_15);
+
+
+static BufferedSerial ard(PC_12, PD_2);
+static BufferedSerial ter(USBTX, USBRX);
+char buf[128];
+
+int X;
+DigitalOut myled(LED1);
+
+int main()
+{
+    
+    int count = 0;
+    ard.set_baud(115200);
+    ter.set_baud(115200);
+    ard.set_format(8, BufferedSerial::None, 1); //8bit NO-Parity STOP1
+    ter.set_format(8, BufferedSerial::None, 1); //8bit NO-Parity STOP1
+
+    //double acc = 0.05;                                                       //asimawari no kasokudo
+    double movey = 0, movex = 0, turn = 0;
+    double trg1 = 0, trg2 = 0, trg3 = 0;
+    
+    printf("START\n");
+
+    
+    while (true) 
+    {
+        
+        if (uint32_t sig=ard.read(buf,sizeof(buf))) {
+            
+            
+            switch (buf[0]) {
+                case ('^'):
+                    printf("^\n");
+                    movey = SPEED;
+                    break;
+                case ('v'):
+                    //ter.write(buf, sig);
+                    printf("v\n");
+                    movey = -SPEED;
+                    break;
+                case ('>'):
+                    //ter.write(buf, sig);
+                    printf(">\n");
+                    movex = SPEED;
+                    break; 
+                case ('<'):
+                    //ter.write(buf, sig);
+                    printf("<\n");
+                    movex = -SPEED;
+                    break;
+                case ('R'):
+                    //ter.write(buf, sig);
+                    printf("R\n");
+                    turn = SPEED;
+                    break;
+                case ('L'):
+                    //ter.write(buf, sig);
+                    printf("L\n");
+                    turn = -SPEED;
+                    break;
+                default:
+                    movey = 0;
+                    movex = 0;
+                    turn = 0;
+                    
+            }
+
+            switch(buf[0]){
+                case ('A'):
+                    printf("A\n");
+
+                    break;
+                case ('B'):
+                    printf("B\n");
+
+                    break;
+                case ('X'):
+                    printf("X\n");
+
+                    break;
+                case ('Y'):
+                    printf("Y\n");
+
+                    break;
+                case ('r'):
+                    printf("r\n");
+
+                    break;
+                case ('l'):
+                    printf("l\n");
+
+                    break;
+                default:
+                    trg1 = 0;
+                    trg2 = 0;
+                    trg3 = 0;
+            }
+        }
+        
+        wmotor[0] = (movey + movex + turn);                                   //fr
+        wmotor[1] = (movey - movex - turn);                                   //fl
+        wmotor[2] = (movey - movex + turn);                                   //rr
+        wmotor[3] = (movey + movex - turn);                                   //rl
+        
+        m1 = trg1;
+        m2 = trg2;
+        m3 = trg3;
+     
+    }
+}
